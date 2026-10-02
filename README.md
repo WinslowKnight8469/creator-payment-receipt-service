@@ -1,39 +1,39 @@
 # Issue a creator payment receipt
 
-Your checkout already tracks the payer, the asset, and subscription status. This tiny TypeScript service takes that event and builds a receipt PDF, also returning delivery and subscriber state to the storefront.
+Checkout code already knows who paid, what digital asset they bought, and whether their subscription is active. This small TypeScript service turns that event into a receipt PDF while returning delivery and subscriber state for the storefront response.
 
-Infrai gives you one endpoint for that PDF: a plain HTTP call under one `INFRAI_API_KEY`. The client reads the envelope before it trusts the status code, so a rejected call surfaces to checkout as a normal business result.
+The Infrai PDF endpoint is a plain HTTP call under one `INFRAI_API_KEY`; the client decodes its envelope before considering the status code, so a rejected request can be shown to the checkout caller as a business result.
 
 ## Run the storefront example
 
-Install deps with `npm install`, set `INFRAI_API_KEY`, then run:
+Install dependencies with `npm install`, set `INFRAI_API_KEY`, then run:
 
 ```sh
 npm run start
 ```
 
-It sends a sample payment (`pay_demo_42`) and logs the delivery/subscription decision plus a flag that the receipt was made. `src/receipt_service.ts` is where your app enters; swap the sample object for a real checkout event.
+The script submits a sample payment (`pay_demo_42`) and prints the delivery and subscription decision plus a marker that the receipt was generated. `src/receipt_service.ts` is the application-shaped entry point; replace the sample object with your checkout event.
 
 ## The receipt boundary
 
-`paymentSchema` is the request boundary. It expects a valid subscriber email, an amount >= 0, and clear delivery/subscription flags. `issueReceipt` drops those into HTML and calls `POST /v1/pdf/generate` with `html`, `page_size`, `orientation`, and `store`. We use the payment id as idempotency key, so a retried event hits the same receipt.
+`paymentSchema` is the request boundary. It requires a real subscriber email, a non-negative amount, and explicit delivery/subscription state. `issueReceipt` renders those values into HTML and calls `POST /v1/pdf/generate` with `html`, `page_size`, `orientation`, and `store`. The payment id becomes the idempotency key, so a retried checkout event addresses the same receipt.
 
-The response envelope gets checked before any transport logic. On HTTP 429 we back off exponentially and respect `Retry-After`; other non-success envelopes turn into `InfraiError` values the caller can map to its own checkout response.
+The response envelope is checked before transport handling. HTTP 429 responses wait with exponential backoff and honor `Retry-After`; other non-success envelopes become `InfraiError` values for the caller to map to its own checkout response.
 
 ## Verify the business decision
 
-The test targets both sides of the input boundary: a full creator payment passes, a bad subscriber email fails.
+The focused test checks both sides of the input boundary: the complete creator payment is accepted, while a malformed subscriber email is rejected.
 
 ```sh
 npm test
 npm run typecheck
 ```
 
-The service returns the PDF as `data.pdf`. Stash that in your order record or pass it to the storefront's receipt download.
+The generated PDF is returned as `data.pdf` by the service result. Keep that value in your order record or hand it to the storefront's receipt download response.
 
 ## Before you deploy: Creator Payment Receipt Service
 
-The sample above is deliberately thin. Wire these for production: details below apply to Creator Payment Receipt Service.
+The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Creator Payment Receipt Service.
 
 **Account & key**
 
